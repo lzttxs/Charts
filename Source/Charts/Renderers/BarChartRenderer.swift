@@ -12,14 +12,6 @@
 import Foundation
 import CoreGraphics
 
-#if canImport(UIKit)
-    import UIKit
-#endif
-
-#if canImport(Cocoa)
-import Cocoa
-#endif
-
 open class BarChartRenderer: BarLineScatterCandleBubbleRenderer
 {
     /// A nested array of elements ordered logically (i.e not in visual/drawing order) for use with VoiceOver
@@ -431,7 +423,7 @@ open class BarChartRenderer: BarLineScatterCandleBubbleRenderer
                 context.setFillColor(dataSet.color(atIndex: j).cgColor)
             }
             
-            context.fill(barRect)
+//            context.fill(barRect)
             
             if drawBorder
             {
@@ -454,6 +446,32 @@ open class BarChartRenderer: BarLineScatterCandleBubbleRenderer
 
                 accessibilityOrderedElements[j/stackSize].append(element)
             }
+            
+            let cornerRadius: CGFloat = barRect.height <= barRect.width/2 ? 1.0 : barRect.width/2
+            let bezierPath = UIBezierPath(roundedRect: barRect, byRoundingCorners: UIRectCorner(rawValue: UIRectCorner.topLeft.rawValue | UIRectCorner.topRight.rawValue), cornerRadii: CGSize(width: cornerRadius, height: cornerRadius))
+
+            let roundedPath = bezierPath.cgPath
+
+            // if drawing the bar shadow is enabled
+            if (dataProvider.isDrawBarShadowEnabled)
+            {
+                _barShadowRectBuffer.origin.x = barRect.origin.x
+                _barShadowRectBuffer.origin.y = viewPortHandler.contentTop
+                _barShadowRectBuffer.size.width = barRect.size.width
+                _barShadowRectBuffer.size.height = viewPortHandler.contentHeight
+
+                context.setFillColor(dataSet.barShadowColor.cgColor)
+//                    CGContextFillRect(context, barShadow)
+                context.addPath(roundedPath)
+                context.fillPath()
+            }
+
+            // Set the color for the currently drawn value. If the index is out of bounds, reuse colors.
+//            CGContextSetFillColorWithColor(context, (dataSet.colorAt(j) as AnyObject).CGColor)
+            //                CGContextFillRect(context, barRect)
+            context.setFillColor((dataSet.color(atIndex: j) as AnyObject).cgColor)
+            context.addPath(roundedPath)
+            context.fillPath()
         }
         
         context.restoreGState()
@@ -490,7 +508,7 @@ open class BarChartRenderer: BarLineScatterCandleBubbleRenderer
                 let barData = dataProvider.barData
                 else { return }
 
-            let dataSets = barData.dataSets
+            var dataSets = barData.dataSets
 
             let valueOffsetPlus: CGFloat = 4.5
             var posOffset: CGFloat
@@ -811,7 +829,32 @@ open class BarChartRenderer: BarLineScatterCandleBubbleRenderer
                 
                 setHighlightDrawPos(highlight: high, barRect: barRect)
                 
-                context.fill(barRect)
+                let cornerRadius: CGFloat = barRect.height <= barRect.width/2 ? 1.0 : barRect.width/2
+                let bezierPath = UIBezierPath(roundedRect: barRect, byRoundingCorners: UIRectCorner(rawValue: UIRectCorner.topLeft.rawValue | UIRectCorner.topRight.rawValue), cornerRadii: CGSize(width: cornerRadius, height: cornerRadius))
+
+                let roundedPath = bezierPath.cgPath
+
+                // if drawing the bar shadow is enabled
+                if (dataProvider.isDrawBarShadowEnabled)
+                {
+                    _barShadowRectBuffer.origin.x = barRect.origin.x
+                    _barShadowRectBuffer.origin.y = viewPortHandler.contentTop
+                    _barShadowRectBuffer.size.width = barRect.size.width
+                    _barShadowRectBuffer.size.height = viewPortHandler.contentHeight
+
+//                    context.setFillColor(BarChartDataProvider.barShadowColor.cgColor)
+    //                    CGContextFillRect(context, barShadow)
+                    context.addPath(roundedPath)
+                    context.fillPath()
+                }
+
+                // Set the color for the currently drawn value. If the index is out of bounds, reuse colors.
+    //            CGContextSetFillColorWithColor(context, (dataSet.colorAt(j) as AnyObject).CGColor)
+                //                CGContextFillRect(context, barRect)
+                context.setFillColor(set.highlightColor.cgColor)
+                context.addPath(roundedPath)
+                context.fillPath()
+//                context.fill(barRect)
             }
         }
         
@@ -875,12 +918,9 @@ open class BarChartRenderer: BarLineScatterCandleBubbleRenderer
             } else {
                 stackLabel = nil
             }
-            
-            //Handles empty array of yValues
-            let yValue = vals.isEmpty ? 0.0 : vals[idx % vals.count]
-            
+
             elementValueText = dataSet.valueFormatter?.stringForValue(
-                yValue,
+                vals[idx % stackSize],
                 entry: e,
                 dataSetIndex: dataSetIndex,
                 viewPortHandler: viewPortHandler) ?? "\(e.y)"
